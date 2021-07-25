@@ -1,0 +1,10 @@
+{
+  "name": "test2",
+  "description": "this is test2",
+  "url": "http://www.baidu.com",
+  "method": "POST",
+  "headers": {},
+  "params": {},
+  "data": "",
+  "cookies": {}
+}

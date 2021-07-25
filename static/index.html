@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>API Invoke Platform</title>
+    <link rel="stylesheet" href="https://cdn.bootcss.com/element-ui/2.9.2/theme-chalk/index.css">
+</head>
+<body>
+<el-main id="app" v-loading="loading" class="">
+
+    <el-row>
+        <el-cascader-panel :options="dirs" v-model="filename" @change="loadFile" :props="{emitPath:false}"></el-cascader-panel>
+    </el-row>
+
+    <el-row :gutter="40">
+        <el-col :span="12">
+            <el-row>
+                <h2 style="color:blue;">Request</h2>
+                <el-select v-model="namespace" style="width: 200px;" @change="loadFile">
+                    <el-option label="no namespace" value=""></el-option>
+                    <el-option v-for="(value,index) in namespaces" :label="value" :value="value"></el-option>
+                </el-select>
+                <h3>{{fileData.name}} <span style="color: DarkOliveGreen; font-size: 14px; vertical-align:bottom;">{{filename}}</span></h3>
+                <p v-html="fileData.description" style="font-size: 15px;"></p>
+            </el-row>
+
+            <el-row>
+                <el-input class="input-with-select" placeholder="Input URL" v-model="fileData.url" @keyup.native.enter="exec">
+                    <el-select v-model="fileData.method" slot="prepend" placeholder="请选择方法" style="width: 120px;">
+                        <el-option label="GET" value="GET"></el-option>
+                        <el-option label="POST" value="POST"></el-option>
+                        <el-option label="PUT" value="PUT"></el-option>
+                        <el-option label="DELETE" value="DELETE"></el-option>
+                        <el-option label="HEAD" value="HEAD"></el-option>
+                        <el-option label="OPTIONS" value="OPTIONS"></el-option>
+                        <el-option label="PURGE" value="PURGE"></el-option>
+                    </el-select>
+                    <el-button slot="append" @click="exec">Send</el-button>
+                </el-input>
+            </el-row>
+
+            <el-row :gutter="20">
+                <el-col :span="12">
+                    <h3>Headers</h3>
+                    <el-table :data="fileData.headers" style="width: 100%">
+                        <el-table-column prop="key" label="key">
+                            <template scope="scope">
+                                <el-input v-model="scope.row.key" size="small" placeholder="Key" @keyup.native="modifyInputRow(fileData.headers)"></el-input>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="value" label="value">
+                            <template scope="scope">
+                                <el-input v-model="scope.row.value" size="small" placeholder="Value"></el-input>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </el-col>
+
+                <el-col :span="12">
+                    <h3>Params</h3>
+                    <el-table :data="fileData.params" style="width: 100%">
+                        <el-table-column prop="key" label="key">
+                            <template scope="scope">
+                                <el-input v-model="scope.row.key" size="small" placeholder="Key" @keyup.native="modifyInputRow(fileData.params)"></el-input>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="value" label="value">
+                            <template scope="scope">
+                                <el-input v-model="scope.row.value" size="small" placeholder="Value"></el-input>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </el-col>
+            </el-row>
+
+            <el-row>
+                <h3>Data</h3>
+                <el-input type="textarea" :autosize="{minRows: 3}" v-model="fileData.data" style="font-size: 15px;"
+                          onkeydown="if(e.which==9){};//TODO:支持tab转空格"></el-input>
+                <!--<textarea name="code" id="codeEditor" style="display:none"></textarea>-->
+            </el-row>
+        </el-col>
+
+        <el-col :span="12">
+            <el-row>
+                <h2 style="color:blue;">Result</h2>
+                <h3 style="color: DarkOliveGreen;">Status code: {{fileData.result.status_code}}</h3>
+            </el-row>
+
+            <el-row>
+                <h3>Headers</h3>
+                <el-table :data="fileData.result.headers" style="width: 100%">
+                    <el-table-column prop="key" label="key"></el-table-column>
+                    <el-table-column prop="value" label="value"></el-table-column>
+                </el-table>
+            </el-row>
+
+            <el-row>
+                <el-col>
+                    <h3>Text</h3>
+                    <el-card>
+                        <pre v-html="fileData.result.text" v-if="result_is_json"></pre>
+                        <pre v-model="fileData.result.text" v-else>{{fileData.result.text}}</pre>
+                    </el-card>
+                </el-col>
+            </el-row>
+        </el-col>
+    </el-row>
+
+</el-main>
+</body>
+
+<script src="https://cdn.bootcss.com/vue/2.6.10/vue.min.js"></script><!-- import Vue before Element -->
+<script src="https://cdn.bootcss.com/element-ui/2.9.2/index.js"></script>
+<script src="https://cdn.bootcss.com/axios/0.19.0-beta.1/axios.min.js"></script>
+
+<!--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.56.0/codemirror.min.css"-->
+<!--integrity="sha512-/BlxZbYLtYGExexketXsTi47eHp+r2kTeq2OHecQPZlfbc7WFXVrwbVW9HOYjI6c9Ti+P60ASmVLxittZ0EBGw==" crossorigin="anonymous"/>-->
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.56.0/codemirror.min.js"-->
+<!--integrity="sha512-H5RyE1jRbGn8d0dsSstZi0SSs23X6Hkkf5hLneEIFyCfP/cBwJ/jFJESBuFBiUyzbGZGa06tnrvw1SboRKdwcA=="-->
+<!--crossorigin="anonymous"></script>-->
+<script>
+/*var editor = CodeMirror.fromTextArea(codeEditor, {
+    lineNumbers: true,        //是否在编辑器左侧显示行号
+    matchBrackets: true,      // 括号匹配
+    mode: "javascript",       //语言
+    indentUnit:4,             // 缩进单位为4
+    indentWithTabs: true,     //
+    smartIndent: true,        //自动缩进，设置是否根据上下文自动缩进（和上一行相同的缩进量）。默认为true。
+    styleActiveLine: true,    // 当前行背景高亮
+});*/
+
+function syntaxHighlight(json) {
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    function(match) {
+        var cls = 'number';
+        if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+                cls = 'key';
+            } else {
+                cls = 'string';
+            }
+        } else if (/true|false/.test(match)) {
+            cls = 'boolean';
+        } else if (/null/.test(match)) {
+            cls = 'null';
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+    });
+}
+
+new Vue({
+    el: '#app',
+    data: {
+        loading: false,
+        result_is_json: true,
+        dirs: [],
+        filename: "",
+        namespaces: [],
+        namespace: "",
+        fileData: {
+            "name": "test",
+            "url": "",
+            "method": "GET",
+            "headers": [{
+                "key": "",
+                "value": ""
+            }],
+            "params": [{
+                "key": "",
+                "value": ""
+            }],
+            "data": "",
+            "cookies": [],
+            'result': {}
+        }
+    },
+    mounted: function() {
+        this.getDir();
+        this.getNS();
+    },
+    methods: {
+        modifyInputRow(target) {
+            var hasEmptyLine = false;
+            for (var i = 0; i < target.length; i++) {
+                if (target[i].key == "") {
+                    if (!hasEmptyLine) {
+                        hasEmptyLine = true;
+                    } else {
+                        target = target.splice(i, 1);
+                    }
+                }
+            }
+            if (!hasEmptyLine) {
+                target.push({
+                    "key": "",
+                    "value": ""
+                });
+            }
+        },
+        getDir: function() {
+            var that = this;
+            axios.get('api/dir').then(function(response) {
+                console.log(response);
+                that.dirs = response["data"];
+            }).
+            catch(function(error) {
+                console.log(error);
+            })
+        },
+        getNS: function() {
+            var that = this;
+            axios.get('api/ns').then(function(response) {
+                console.log(response);
+                that.namespaces = response["data"];
+            }).
+            catch(function(error) {
+                console.log(error);
+            })
+        },
+        loadFile: function() {
+            if (this.filename == "") return;
+            var that = this;
+            console.log(this.filename);
+            axios.get('api/file', {
+                'params': {
+                    'filename': that.filename,
+                    'namespace': that.namespace
+                }
+            }).then(function(response) {
+                console.log(response);
+                that.fileData = response["data"];
+                that.fileData.headers.push({
+                    "key": "",
+                    "value": ""
+                });
+                that.fileData.params.push({
+                    "key": "",
+                    "value": ""
+                });
+                if (that.fileData.description != undefined) {
+                    that.fileData.description = that.fileData.description.replace(/\n/g, '<br/>').replace(/\s/g, '&nbsp;');
+                }
+                if (that.fileData.result.text != undefined) {
+                    try {
+                        json = JSON.parse(that.fileData.result.text);
+                        that.fileData.result.text = syntaxHighlight(JSON.stringify(json, undefined, 4));
+                        that.result_is_json = true;
+                    } catch {
+                        //not json data
+                        console.log("not json data");
+                        that.result_is_json = false;
+                    }
+                }
+
+            }).
+            catch(function(error) {
+                console.log(error);
+            })
+        },
+        exec() {
+            this.loading = true;
+            var that = this;
+            axios.post('api/proxy', {
+                'url': that.fileData.url,
+                'method': that.fileData.method,
+                'headers': that.fileData.headers,
+                'params': that.fileData.params,
+                'data': that.fileData.data,
+                'cookies': that.fileData.cookies
+            }).then(function(response) {
+                console.log(response);
+                that.fileData.result = response["data"];
+                try {
+                    json = JSON.parse(that.fileData.result.text);
+                    that.fileData.result.text = syntaxHighlight(JSON.stringify(json, undefined, 4));
+                    that.result_is_json = true;
+                } catch {
+                    //not json data
+                    console.log("not json data");
+                    that.result_is_json = false;
+                }
+            }).
+            catch(function(error) {
+                console.log(error);
+            }).
+            finally(function() {
+                that.loading = false;
+                that.getDir();
+            })
+        },
+    }
+})
+</script>
+<style>
+pre { white-space: pre-wrap; word-wrap: break-word; font-size: 15px; }
+.string { color: Green; }
+.number { color: Blue; }
+.boolean { color: DarkMagenta; }
+.null { color: Magenta; }
+.key { color: Red; }
+</style>
+</html>

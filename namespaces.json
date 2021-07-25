@@ -1,0 +1,10 @@
+{
+  "test_ns1": {
+    "variable1": "ns1_var1",
+    "variable2": "ns1_var2"
+  },
+  "test_ns2": {
+    "variable1": "ns2_var1",
+    "variable2": "ns2_var2"
+  }
+}
